@@ -7,6 +7,7 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  Platform,
 } from "react-native";
 import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -21,11 +22,10 @@ export default function App() {
   const [working, setWorking] = useState(true);
   const [text, setText] = useState("");
   const [toDos, setToDos] = useState({}); //not an array, but hashmap!
-  const [editText, setEditText] = useState("");
   useEffect(() => {
     loadWorking();
     loadToDos();
-    console.log(toDos);
+    //console.log(toDos);
   }, []);
   const travel = () => {
     setWorking(false);
@@ -43,17 +43,21 @@ export default function App() {
   const loadWorking = async () => {
     const loadedWorking = await AsyncStorage.getItem(STORAGE_KEY_WORKING);
     //console.log("loadedWorking : ", loadedWorking);
-    setWorking(JSON.parse(loadedWorking));
+    if (loadedWorking) {
+      setWorking(JSON.parse(loadedWorking));
+    }
   };
 
   const saveToDos = async (toSave) => {
-    console.log("todos in savetodos: ", toSave);
+    //console.log("todos in savetodos: ", toSave);
     //take todos, turn into string, save using asyncStorage
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   };
   const loadToDos = async () => {
     const s = await AsyncStorage.getItem(STORAGE_KEY);
-    setToDos(JSON.parse(s));
+    if (s) {
+      setToDos(JSON.parse(s));
+    }
   };
 
   const addToDo = async () => {
@@ -73,6 +77,16 @@ export default function App() {
     setText("");
   };
   const deleteToDo = (key) => {
+    if (Platform.OS === "web") {
+      const ok = confirm("Do you want to delete this To Do?");
+      if (ok) {
+        const newToDos = { ...toDos };
+        delete newToDos[key];
+        setToDos(newToDos); //update the state
+        saveToDos(newToDos); //save in the asyncStorage
+      }
+      return;
+    }
     Alert.alert("Delete To Do", "Are you sure?", [
       { text: "Cancel" },
       {
@@ -108,7 +122,7 @@ export default function App() {
     const newToDos = { ...toDos };
     newToDos[key].text = editedText;
     newToDos[key].edit = false;
-    console.log(newToDos[key]);
+    //console.log(newToDos[key]);
     setToDos(newToDos);
     saveToDos(newToDos);
   };
@@ -141,7 +155,7 @@ export default function App() {
         onChangeText={onChangeText}
         value={text}
         returnKeyType="done"
-        placeholder={working ? "Add a To DO!" : "Where do you want to go?"}
+        placeholder={working ? "Add a To Do!" : "Where do you want to go?"}
         style={styles.input}
       ></TextInput>
       <ScrollView>
