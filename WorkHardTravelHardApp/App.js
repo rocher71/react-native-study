@@ -10,9 +10,8 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SwipeListView } from "react-native-swipe-list-view";
 
-import { Fontisto } from "@expo/vector-icons";
+import { Fontisto, MaterialIcons } from "@expo/vector-icons";
 import { theme } from "./colors";
 
 const STORAGE_KEY = "@toDos";
@@ -22,25 +21,33 @@ export default function App() {
   const [working, setWorking] = useState(true);
   const [text, setText] = useState("");
   const [toDos, setToDos] = useState({}); //not an array, but hashmap!
+  const [editText, setEditText] = useState("");
   useEffect(() => {
     loadWorking();
     loadToDos();
+    console.log(toDos);
   }, []);
-  const travel = async () => {
+  const travel = () => {
     setWorking(false);
-    await AsyncStorage.setItem(STORAGE_KEY_WORKING, JSON.stringify(false));
+    saveWorking(false);
   };
-  const work = async () => {
+  const work = () => {
     setWorking(true);
-    await AsyncStorage.setItem(STORAGE_KEY_WORKING, JSON.stringify(true));
+    saveWorking(true);
+  };
+  const onChangeText = (payload) => setText(payload);
+
+  const saveWorking = async (isWorking) => {
+    await AsyncStorage.setItem(STORAGE_KEY_WORKING, JSON.stringify(isWorking));
   };
   const loadWorking = async () => {
     const loadedWorking = await AsyncStorage.getItem(STORAGE_KEY_WORKING);
     //console.log("loadedWorking : ", loadedWorking);
     setWorking(JSON.parse(loadedWorking));
   };
-  const onChangeText = (payload) => setText(payload);
+
   const saveToDos = async (toSave) => {
+    console.log("todos in savetodos: ", toSave);
     //take todos, turn into string, save using asyncStorage
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   };
@@ -59,14 +66,14 @@ export default function App() {
     // });
     const newToDos = {
       ...toDos,
-      [Date.now()]: { text, working },
+      [Date.now()]: { text, working, checked: false, edit: false },
     };
     setToDos(newToDos);
     await saveToDos(newToDos);
     setText("");
   };
   const deleteToDo = (key) => {
-    Alert.alert("Delete To DO", "Are you sure?", [
+    Alert.alert("Delete To Do", "Are you sure?", [
       { text: "Cancel" },
       {
         text: "I'm Sure",
@@ -80,6 +87,30 @@ export default function App() {
         },
       },
     ]);
+  };
+  const checkToDo = (key) => {
+    const newToDos = { ...toDos };
+    newToDos[key].checked = !newToDos[key].checked;
+    setToDos(newToDos);
+    saveToDos(newToDos);
+  };
+  const goEditMode = (key) => {
+    const newToDos = { ...toDos };
+    newToDos[key].edit = true;
+    setToDos(newToDos);
+  };
+  const editToDo = (event, key) => {
+    //console.log(event.nativeEvent, key);
+    const editedText = event.nativeEvent.text;
+    if (event.text === "") {
+      return;
+    }
+    const newToDos = { ...toDos };
+    newToDos[key].text = editedText;
+    newToDos[key].edit = false;
+    console.log(newToDos[key]);
+    setToDos(newToDos);
+    saveToDos(newToDos);
   };
 
   return (
@@ -117,10 +148,55 @@ export default function App() {
         {toDos &&
           Object.keys(toDos).map((key) =>
             toDos[key].working === working ? (
-              <View key={key} style={styles.toDo}>
-                <Text style={styles.toDoText}>{toDos[key].text}</Text>
-                <TouchableOpacity onPress={() => deleteToDo(key)}>
-                  <Fontisto name="trash" size={18} color={theme.grey} />
+              // work
+              <View key={key}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => checkToDo(key)}
+                >
+                  <View key={key} style={styles.toDo}>
+                    {toDos[key].edit ? (
+                      <View>
+                        <TextInput
+                          returnKeyType="done"
+                          style={styles.toDoText}
+                          onSubmitEditing={(e) => editToDo(e, key)}
+                          autoFocus
+                        ></TextInput>
+                      </View>
+                    ) : (
+                      <View style={styles.viewMode}>
+                        <Text
+                          key={key}
+                          style={
+                            toDos[key].checked
+                              ? { ...styles.checkedToDoText }
+                              : { ...styles.toDoText }
+                          }
+                        >
+                          {toDos[key].text}
+                        </Text>
+                      </View>
+                    )}
+                    {toDos[key].edit ? null : (
+                      <View style={styles.todoIcons}>
+                        <TouchableOpacity onPress={() => goEditMode(key)}>
+                          <MaterialIcons
+                            name="mode-edit"
+                            size={24}
+                            style={styles.todoIcon}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => deleteToDo(key)}>
+                          <Fontisto
+                            name="trash"
+                            size={18}
+                            style={styles.todoIcon}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
                 </TouchableOpacity>
               </View>
             ) : null
@@ -167,5 +243,18 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "500",
+  },
+  checkedToDoText: {
+    color: theme.lightGrey,
+    fontSize: 16,
+    fontWeight: "500",
+    textDecorationLine: "line-through",
+  },
+  todoIcons: {
+    flexDirection: "row",
+  },
+  todoIcon: {
+    marginHorizontal: 5,
+    color: theme.grey,
   },
 });
