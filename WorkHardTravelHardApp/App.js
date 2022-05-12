@@ -8,12 +8,15 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Dimensions,
 } from "react-native";
 import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SwipeListView } from "react-native-swipe-list-view";
 
 import { Fontisto, MaterialIcons } from "@expo/vector-icons";
 import { theme } from "./colors";
+import { color } from "react-native/Libraries/Components/View/ReactNativeStyleAttributes";
 
 const STORAGE_KEY = "@toDos";
 const STORAGE_KEY_WORKING = "@working";
@@ -23,12 +26,13 @@ export default function App() {
   const [edit, setEdit] = useState(false);
   const [text, setText] = useState("");
   const [editText, setEditText] = useState("");
-  const [toDos, setToDos] = useState({}); //not an array, but hashmap!
+  const [toDos, setToDos] = useState([]); //not an array, but hashmap!
   useEffect(() => {
     loadWorking();
     loadToDos();
-    //console.log(toDos);
+    console.log("in useEffect : ", toDos);
   }, []);
+
   const travel = () => {
     setWorking(false);
     saveWorking(false);
@@ -70,10 +74,11 @@ export default function App() {
     // const newToDos = Object.assign({}, toDos, {
     //   [Date.now()]: { text, work: working },
     // });
-    const newToDos = {
+    const newToDos = [
       ...toDos,
-      [Date.now()]: { text, working, checked: false, edit: false },
-    };
+      { key: Date.now(), text, working, checked: false, edit: false },
+    ];
+    //console.log("newToDos in addToDo : ", newToDos);
     setToDos(newToDos);
     await saveToDos(newToDos);
     setText("");
@@ -104,9 +109,10 @@ export default function App() {
       },
     ]);
   };
-  const checkToDo = (key) => {
-    const newToDos = { ...toDos };
-    newToDos[key].checked = !newToDos[key].checked;
+  const checkToDo = (idx) => {
+    const newToDos = [...toDos];
+    console.log(newToDos[idx].text + " is (un)checked!");
+    newToDos[idx].checked = !newToDos[idx].checked;
     setToDos(newToDos);
     saveToDos(newToDos);
   };
@@ -137,6 +143,51 @@ export default function App() {
     setEdit(false);
     setEditText("");
   };
+
+  const renderItem = (data) => {
+    console.log("data in renderItem : ", data);
+    return (
+      <View style={styles.toDo}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => checkToDo(data.idx)}
+        >
+          <View>
+            {data.item.edit ? (
+              //수정 모드
+              <View>
+                <TextInput
+                  returnKeyType="done"
+                  style={styles.toDoText}
+                  autoFocus
+                ></TextInput>
+              </View>
+            ) : (
+              //조회 모드
+              <View style={styles.viewMode}>
+                <Text
+                  style={
+                    data.item.checked
+                      ? { ...styles.checkedToDoText }
+                      : { ...styles.toDoText }
+                  }
+                >
+                  {data.item.text}
+                </Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+  const renderHiddenItem = () => (
+    <View style={styles.rowBack}>
+      <View style={[styles.backRightBtn, styles.backRightBtnRight]}>
+        <Text style={styles.backTextWhite}>Delete</Text>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -169,7 +220,16 @@ export default function App() {
         placeholder={working ? "Add a To Do!" : "Where do you want to go?"}
         style={styles.input}
       ></TextInput>
-      <ScrollView>
+      {toDos ? (
+        <SwipeListView
+          disableRightSwipe
+          data={toDos}
+          renderItem={renderItem}
+          renderHiddenItem={renderHiddenItem}
+          rightOpenValue={-75}
+        />
+      ) : null}
+      {/* <ScrollView>
         {toDos &&
           Object.keys(toDos).map((key) =>
             toDos[key].working === working ? (
@@ -230,7 +290,9 @@ export default function App() {
               </View>
             ) : null
           )}
-      </ScrollView>
+      </ScrollView> */}
+      {/* Object.keys(toDos).map((key) =>
+            toDos[key].working === working ? ( */}
     </View>
   );
 }
@@ -285,5 +347,51 @@ const styles = StyleSheet.create({
   todoIcon: {
     marginHorizontal: 5,
     color: theme.grey,
+  },
+  swipeHiddenItemContainer: {
+    flex: 1,
+    height: "100%",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "white",
+    flexDirection: "row",
+  },
+  swipeHiddenItem: {
+    width: 70,
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  swipeHiddenItemText: {
+    color: "white",
+    fontSize: 14,
+  },
+  rowBack: {
+    borderRadius: 10,
+    marginVertical: 2,
+    padding: 20,
+    alignItems: "center",
+    backgroundColor: "red",
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingLeft: 15,
+  },
+  backRightBtn: {
+    alignItems: "center",
+    bottom: 0,
+    justifyContent: "center",
+    position: "absolute",
+    top: 0,
+    width: 75,
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  backRightBtnRight: {
+    backgroundColor: "red",
+    right: 0,
+  },
+  backTextWhite: {
+    color: "#FFF",
   },
 });
