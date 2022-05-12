@@ -30,7 +30,7 @@ export default function App() {
   useEffect(() => {
     loadWorking();
     loadToDos();
-    console.log("in useEffect : ", toDos);
+    //console.log("in useEffect : ", toDos);
   }, []);
 
   const travel = () => {
@@ -48,14 +48,13 @@ export default function App() {
   };
   const loadWorking = async () => {
     const loadedWorking = await AsyncStorage.getItem(STORAGE_KEY_WORKING);
-    //console.log("loadedWorking : ", loadedWorking);
+
     if (loadedWorking) {
       setWorking(JSON.parse(loadedWorking));
     }
   };
 
   const saveToDos = async (toSave) => {
-    //console.log("todos in savetodos: ", toSave);
     //take todos, turn into string, save using asyncStorage
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   };
@@ -78,7 +77,7 @@ export default function App() {
       ...toDos,
       { key: Date.now(), text, working, checked: false, edit: false },
     ];
-    //console.log("newToDos in addToDo : ", newToDos);
+
     setToDos(newToDos);
     await saveToDos(newToDos);
     setText("");
@@ -109,9 +108,10 @@ export default function App() {
       },
     ]);
   };
-  const checkToDo = (idx) => {
+  const checkToDo = (event, data) => {
+    const idx = data.index;
     const newToDos = [...toDos];
-    console.log(newToDos[idx].text + " is (un)checked!");
+
     newToDos[idx].checked = !newToDos[idx].checked;
     setToDos(newToDos);
     saveToDos(newToDos);
@@ -129,7 +129,6 @@ export default function App() {
   };
   const onEditTodo = (payload) => setEditText(payload);
   const editToDo = (event, key) => {
-    //console.log(event.nativeEvent, key);
     const editedText = event.nativeEvent.text;
     if (event.text === "") {
       return;
@@ -137,7 +136,6 @@ export default function App() {
     const newToDos = { ...toDos };
     newToDos[key].text = editedText;
     newToDos[key].edit = false;
-    //console.log(newToDos[key]);
     setToDos(newToDos);
     saveToDos(newToDos);
     setEdit(false);
@@ -145,40 +143,36 @@ export default function App() {
   };
 
   const renderItem = (data) => {
-    console.log("data in renderItem : ", data);
     return (
-      <View style={styles.toDo}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => checkToDo(data.idx)}
-        >
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={(e) => checkToDo(e, data)}
+        style={styles.toDo}
+      >
+        {data.item.edit ? (
+          //수정 모드
           <View>
-            {data.item.edit ? (
-              //수정 모드
-              <View>
-                <TextInput
-                  returnKeyType="done"
-                  style={styles.toDoText}
-                  autoFocus
-                ></TextInput>
-              </View>
-            ) : (
-              //조회 모드
-              <View style={styles.viewMode}>
-                <Text
-                  style={
-                    data.item.checked
-                      ? { ...styles.checkedToDoText }
-                      : { ...styles.toDoText }
-                  }
-                >
-                  {data.item.text}
-                </Text>
-              </View>
-            )}
+            <TextInput
+              returnKeyType="done"
+              style={styles.toDoText}
+              autoFocus
+            ></TextInput>
           </View>
-        </TouchableOpacity>
-      </View>
+        ) : (
+          //조회 모드
+          <View style={styles.viewMode}>
+            <Text
+              style={
+                data.item.checked
+                  ? { ...styles.checkedToDoText }
+                  : { ...styles.toDoText }
+              }
+            >
+              {data.item.text}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
     );
   };
   const renderHiddenItem = () => (
