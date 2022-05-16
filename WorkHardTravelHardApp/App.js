@@ -4,6 +4,7 @@ import {
   Text,
   View,
   TouchableOpacity,
+  TouchableHighlight,
   TextInput,
   ScrollView,
   Alert,
@@ -117,6 +118,7 @@ export default function App() {
     saveToDos(newToDos);
   };
   const goEditMode = (key) => {
+    return;
     if (edit) {
       Alert.alert("Edit one at a time!", "", [{ text: "OK" }]);
       return;
@@ -144,10 +146,11 @@ export default function App() {
 
   const renderItem = (data) => {
     return (
-      <TouchableOpacity
+      <TouchableHighlight
         activeOpacity={0.8}
         onPress={(e) => checkToDo(e, data)}
         style={styles.toDo}
+        underlayColor={theme.toDoBg}
       >
         {data.item.edit ? (
           //수정 모드
@@ -170,9 +173,19 @@ export default function App() {
             >
               {data.item.text}
             </Text>
+            <TouchableOpacity
+              style={styles.todoIcons}
+              onPress={(event, data) => goEditMode(event, data)}
+            >
+              <MaterialIcons
+                name="mode-edit"
+                size={24}
+                style={styles.todoIcon}
+              />
+            </TouchableOpacity>
           </View>
         )}
-      </TouchableOpacity>
+      </TouchableHighlight>
     );
   };
   const renderHiddenItem = () => (
@@ -334,6 +347,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     textDecorationLine: "line-through",
+  },
+  viewMode: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   todoIcons: {
     flexDirection: "row",
