@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Dimensions,
+  Animated,
 } from "react-native";
 import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -21,6 +22,12 @@ import { color } from "react-native/Libraries/Components/View/ReactNativeStyleAt
 
 const STORAGE_KEY = "@toDos";
 const STORAGE_KEY_WORKING = "@working";
+const rowTranslateAnimatedValues = {};
+Array(20)
+  .fill("")
+  .forEach((_, i) => {
+    rowTranslateAnimatedValues[`${i}`] = new Animated.Value(1);
+  });
 
 export default function App() {
   const [working, setWorking] = useState(true);
@@ -144,57 +151,110 @@ export default function App() {
     setEditText("");
   };
 
-  const renderItem = (data) => {
-    return (
-      <TouchableHighlight
-        activeOpacity={0.8}
-        onPress={(e) => checkToDo(e, data)}
-        style={styles.toDo}
-        underlayColor={theme.toDoBg}
-      >
-        {data.item.edit ? (
-          //수정 모드
-          <View>
-            <TextInput
-              returnKeyType="done"
-              style={styles.toDoText}
-              autoFocus
-            ></TextInput>
-          </View>
-        ) : (
-          //조회 모드
-          <View style={styles.viewMode}>
-            <Text
-              style={
-                data.item.checked
-                  ? { ...styles.checkedToDoText }
-                  : { ...styles.toDoText }
-              }
-            >
-              {data.item.text}
-            </Text>
-            <TouchableOpacity
-              style={styles.todoIcons}
-              onPress={(event, data) => goEditMode(event, data)}
-            >
-              <MaterialIcons
-                name="mode-edit"
-                size={24}
-                style={styles.todoIcon}
-              />
-            </TouchableOpacity>
-          </View>
-        )}
-      </TouchableHighlight>
-    );
+  const onSwipeValueChange = (swipeData) => {
+    const { key, value } = swipeData;
+
+    if (value < -Dimensions.get("window").width) {
+      //console.log("swipeData : ", swipeData);
+
+      Animated.timing(new Animated.Value(1), {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start((e) => {
+        console.log(e);
+        console.log("dkajfks");
+        const newToDos = [...toDos];
+        const prevIndex = newToDos.findIndex((item) => item.key === key);
+        newToDos.splice(prevIndex, 1);
+        setToDos(newToDos);
+        saveToDos(newToDos);
+        //console.log("todos : ", toDos);
+      });
+    }
   };
-  const renderHiddenItem = () => (
-    <View style={styles.rowBack}>
-      <View style={[styles.backRightBtn, styles.backRightBtnRight]}>
-        <Text style={styles.backTextWhite}>Delete</Text>
-      </View>
-    </View>
-  );
+
+  const renderItem = (data) => {
+    console.log("=============================================");
+    console.log("renderItem : ", data.item.text);
+
+    if (data.item.working === working) {
+      console.log("returned tochable");
+      return (
+        <TouchableHighlight
+          activeOpacity={0.8}
+          onPress={(e) => checkToDo(e, data)}
+          style={styles.toDo}
+          underlayColor={theme.toDoBg}
+        >
+          {data.item.edit ? (
+            //수정 모드
+            <View>
+              <TextInput
+                returnKeyType="done"
+                style={styles.toDoText}
+                autoFocus
+              ></TextInput>
+            </View>
+          ) : (
+            //조회 모드
+            <View style={styles.viewMode}>
+              <Text
+                style={
+                  data.item.checked
+                    ? { ...styles.checkedToDoText }
+                    : { ...styles.toDoText }
+                }
+              >
+                {data.item.text}
+              </Text>
+              <TouchableOpacity
+                onPress={(event, data) => goEditMode(event, data)}
+              >
+                <MaterialIcons
+                  name="mode-edit"
+                  size={24}
+                  style={styles.todoIcon}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+        </TouchableHighlight>
+      );
+    } else {
+      console.log("returned View");
+      return <View />;
+    }
+  };
+  const renderHiddenItem = (data) => {
+    console.log("renderHiddenItem : ", data.item.text);
+    console.log(
+      "data.item.working === working : ",
+      data.item.working === working
+    );
+
+    if (data.item.working === working) {
+      console.log("returned delete");
+      return (
+        <View style={styles.rowBack}>
+          <View style={[styles.backRightBtn, styles.backRightBtnRight]}>
+            <Fontisto name="trash" size={15} style={styles.backTextWhite} />
+          </View>
+        </View>
+      );
+    } else {
+      console.log("returned view");
+      return <View />;
+    }
+    // return (
+
+    //   <View style={styles.rowBack}>
+    //     <View style={[styles.backRightBtn, styles.backRightBtnRight]}>
+    //       <Text style={styles.backTextWhite}>Delete</Text>
+    //     </View>
+    //   </View>
+    // );
+  };
 
   return (
     <View style={styles.container}>
@@ -220,6 +280,7 @@ export default function App() {
       </View>
 
       <TextInput
+        autoCorrect={false}
         onSubmitEditing={addToDo}
         onChangeText={onChangeText}
         value={text}
@@ -233,7 +294,9 @@ export default function App() {
           data={toDos}
           renderItem={renderItem}
           renderHiddenItem={renderHiddenItem}
-          rightOpenValue={-75}
+          onSwipeValueChange={onSwipeValueChange}
+          rightOpenValue={-Dimensions.get("window").width}
+          useNativeDriver={false}
         />
       ) : null}
       {/* <ScrollView>
@@ -350,7 +413,7 @@ const styles = StyleSheet.create({
   },
   viewMode: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
   },
   todoIcons: {
     flexDirection: "row",
@@ -358,24 +421,8 @@ const styles = StyleSheet.create({
   todoIcon: {
     marginHorizontal: 5,
     color: theme.grey,
-  },
-  swipeHiddenItemContainer: {
-    flex: 1,
-    height: "100%",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "white",
-    flexDirection: "row",
-  },
-  swipeHiddenItem: {
-    width: 70,
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  swipeHiddenItemText: {
-    color: "white",
-    fontSize: 14,
+    position: "absolute",
+    left: 0,
   },
   rowBack: {
     borderRadius: 10,
