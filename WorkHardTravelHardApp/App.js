@@ -20,7 +20,8 @@ import { Fontisto, MaterialIcons } from "@expo/vector-icons";
 import { theme } from "./colors";
 import { color } from "react-native/Libraries/Components/View/ReactNativeStyleAttributes";
 
-const STORAGE_KEY = "@toDos";
+const STORAGE_KEY_WORK_TODO = "@workToDo";
+const STORAGE_KEY_TRAV_TODO = "@travToDo";
 const STORAGE_KEY_WORKING = "@working";
 const rowTranslateAnimatedValues = {};
 Array(20)
@@ -34,11 +35,14 @@ export default function App() {
   const [edit, setEdit] = useState(false);
   const [text, setText] = useState("");
   const [editText, setEditText] = useState("");
-  const [toDos, setToDos] = useState([]); //not an array, but hashmap!
+  const [workToDos, setWorkToDos] = useState([]); //not an array, but hashmap!
+  const [travToDos, setTravToDos] = useState([]);
   useEffect(() => {
     loadWorking();
     loadToDos();
-    //console.log("in useEffect : ", toDos);
+
+    // console.log("workToDos in useEffect : ", workToDos);
+    // console.log("travToDos in useEffect : ", travToDos);
   }, []);
 
   const travel = () => {
@@ -56,7 +60,6 @@ export default function App() {
   };
   const loadWorking = async () => {
     const loadedWorking = await AsyncStorage.getItem(STORAGE_KEY_WORKING);
-
     if (loadedWorking) {
       setWorking(JSON.parse(loadedWorking));
     }
@@ -64,12 +67,20 @@ export default function App() {
 
   const saveToDos = async (toSave) => {
     //take todos, turn into string, save using asyncStorage
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    if (working) {
+      await AsyncStorage.setItem(STORAGE_KEY_WORK_TODO, JSON.stringify(toSave));
+    } else {
+      await AsyncStorage.setItem(STORAGE_KEY_TRAV_TODO, JSON.stringify(toSave));
+    }
   };
   const loadToDos = async () => {
-    const s = await AsyncStorage.getItem(STORAGE_KEY);
-    if (s) {
-      setToDos(JSON.parse(s));
+    const workTodo = await AsyncStorage.getItem(STORAGE_KEY_WORK_TODO);
+    const travTodo = await AsyncStorage.getItem(STORAGE_KEY_TRAV_TODO);
+    if (workTodo) {
+      setWorkToDos(JSON.parse(workTodo));
+    }
+    if (travTodo) {
+      setTravToDos(JSON.parse(travTodo));
     }
   };
 
@@ -81,22 +92,32 @@ export default function App() {
     // const newToDos = Object.assign({}, toDos, {
     //   [Date.now()]: { text, work: working },
     // });
-    const newToDos = [
-      ...toDos,
-      { key: Date.now(), text, working, checked: false, edit: false },
-    ];
+    const newToDo = {
+      key: Date.now(),
+      text,
+      working,
+      checked: false,
+      edit: false,
+    };
+    const newToDos = working
+      ? [...workToDos, newToDo]
+      : [...travToDos, newToDo];
 
-    setToDos(newToDos);
+    if (working) setWorkToDos(newToDos);
+    else setTravToDos(newToDos);
     await saveToDos(newToDos);
     setText("");
+
+    console.log("workToDos : ", workToDos);
+    console.log("travToDos : ", travToDos);
   };
   const deleteToDo = (key) => {
     if (Platform.OS === "web") {
       const ok = confirm("Do you want to delete this To Do?");
       if (ok) {
-        const newToDos = { ...toDos };
+        const newToDos = { ...workToDos };
         delete newToDos[key];
-        setToDos(newToDos); //update the state
+        setWorkToDos(newToDos); //update the state
         saveToDos(newToDos); //save in the asyncStorage
       }
       return;
@@ -108,9 +129,9 @@ export default function App() {
         style: "destructive",
         onPress: () => {
           //create a new toDos that 'without' the todo that has the parameter key
-          const newToDos = { ...toDos };
+          const newToDos = { ...workToDos };
           delete newToDos[key];
-          setToDos(newToDos); //update the state
+          setWorkToDos(newToDos); //update the state
           saveToDos(newToDos); //save in the asyncStorage
         },
       },
@@ -118,10 +139,11 @@ export default function App() {
   };
   const checkToDo = (event, data) => {
     const idx = data.index;
-    const newToDos = [...toDos];
-
+    const newToDos = working ? [...workToDos] : [...travToDos];
     newToDos[idx].checked = !newToDos[idx].checked;
-    setToDos(newToDos);
+
+    //setState -> set AsyncStorage
+    working ? setWorkToDos(newToDos) : setTravToDos(newToDos);
     saveToDos(newToDos);
   };
   const goEditMode = (key) => {
@@ -130,11 +152,11 @@ export default function App() {
       Alert.alert("Edit one at a time!", "", [{ text: "OK" }]);
       return;
     }
-    const newToDos = { ...toDos };
+    const newToDos = { ...workToDos };
     setEdit(true);
     setEditText(newToDos[key].text);
     newToDos[key].edit = true;
-    setToDos(newToDos);
+    setWorkToDos(newToDos);
   };
   const onEditTodo = (payload) => setEditText(payload);
   const editToDo = (event, key) => {
@@ -142,10 +164,10 @@ export default function App() {
     if (event.text === "") {
       return;
     }
-    const newToDos = { ...toDos };
+    const newToDos = { ...workToDos };
     newToDos[key].text = editedText;
     newToDos[key].edit = false;
-    setToDos(newToDos);
+    setWorkToDos(newToDos);
     saveToDos(newToDos);
     setEdit(false);
     setEditText("");
@@ -162,12 +184,12 @@ export default function App() {
         duration: 200,
         useNativeDriver: true,
       }).start((e) => {
-        console.log(e);
-        console.log("dkajfks");
-        const newToDos = [...toDos];
+        const newToDos = working ? [...workToDos] : [...travToDos];
         const prevIndex = newToDos.findIndex((item) => item.key === key);
         newToDos.splice(prevIndex, 1);
-        setToDos(newToDos);
+
+        //save
+        working ? setWorkToDos(newToDos) : setTravToDos(newToDos);
         saveToDos(newToDos);
         //console.log("todos : ", toDos);
       });
@@ -175,85 +197,66 @@ export default function App() {
   };
 
   const renderItem = (data) => {
-    console.log("=============================================");
-    console.log("renderItem : ", data.item.text);
+    //console.log("=============================================");
+    //console.log("renderItem : ", data.item.text);
 
-    if (data.item.working === working) {
-      console.log("returned tochable");
-      return (
-        <TouchableHighlight
-          activeOpacity={0.8}
-          onPress={(e) => checkToDo(e, data)}
-          style={styles.toDo}
-          underlayColor={theme.toDoBg}
-        >
-          {data.item.edit ? (
-            //수정 모드
-            <View>
-              <TextInput
-                returnKeyType="done"
-                style={styles.toDoText}
-                autoFocus
-              ></TextInput>
-            </View>
-          ) : (
-            //조회 모드
-            <View style={styles.viewMode}>
-              <Text
-                style={
-                  data.item.checked
-                    ? { ...styles.checkedToDoText }
-                    : { ...styles.toDoText }
-                }
-              >
-                {data.item.text}
-              </Text>
-              <TouchableOpacity
-                onPress={(event, data) => goEditMode(event, data)}
-              >
-                <MaterialIcons
-                  name="mode-edit"
-                  size={24}
-                  style={styles.todoIcon}
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-        </TouchableHighlight>
-      );
-    } else {
-      console.log("returned View");
-      return <View />;
-    }
+    //console.log("returned tochable");
+    return (
+      <TouchableHighlight
+        activeOpacity={0.8}
+        onPress={(e) => checkToDo(e, data)}
+        style={styles.toDo}
+        underlayColor={theme.toDoBg}
+      >
+        {data.item.edit ? (
+          //수정 모드
+          <View>
+            <TextInput
+              returnKeyType="done"
+              style={styles.toDoText}
+              autoFocus
+            ></TextInput>
+          </View>
+        ) : (
+          //조회 모드
+          <View style={styles.viewMode}>
+            <Text
+              style={
+                data.item.checked
+                  ? { ...styles.checkedToDoText }
+                  : { ...styles.toDoText }
+              }
+            >
+              {data.item.text}
+            </Text>
+            <TouchableOpacity
+              onPress={(event, data) => goEditMode(event, data)}
+            >
+              <MaterialIcons
+                name="mode-edit"
+                size={24}
+                style={styles.todoIcon}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+      </TouchableHighlight>
+    );
   };
   const renderHiddenItem = (data) => {
-    console.log("renderHiddenItem : ", data.item.text);
-    console.log(
-      "data.item.working === working : ",
-      data.item.working === working
-    );
-
-    if (data.item.working === working) {
-      console.log("returned delete");
-      return (
-        <View style={styles.rowBack}>
-          <View style={[styles.backRightBtn, styles.backRightBtnRight]}>
-            <Fontisto name="trash" size={15} style={styles.backTextWhite} />
-          </View>
-        </View>
-      );
-    } else {
-      console.log("returned view");
-      return <View />;
-    }
-    // return (
-
-    //   <View style={styles.rowBack}>
-    //     <View style={[styles.backRightBtn, styles.backRightBtnRight]}>
-    //       <Text style={styles.backTextWhite}>Delete</Text>
-    //     </View>
-    //   </View>
+    //console.log("renderHiddenItem : ", data.item.text);
+    // console.log(
+    //   "data.item.working === working : ",
+    //   data.item.working === working
     // );
+
+    return (
+      <View style={styles.rowBack}>
+        <View style={[styles.backRightBtn, styles.backRightBtnRight]}>
+          <Text style={styles.backTextWhite}>Delete</Text>
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -288,17 +291,29 @@ export default function App() {
         placeholder={working ? "Add a To Do!" : "Where do you want to go?"}
         style={styles.input}
       ></TextInput>
-      {toDos ? (
+
+      {/* =================================To Do List====================================== */}
+      {workToDos && working ? (
         <SwipeListView
           disableRightSwipe
-          data={toDos}
+          data={workToDos}
           renderItem={renderItem}
           renderHiddenItem={renderHiddenItem}
           onSwipeValueChange={onSwipeValueChange}
           rightOpenValue={-Dimensions.get("window").width}
           useNativeDriver={false}
         />
-      ) : null}
+      ) : (
+        <SwipeListView
+          disableRightSwipe
+          data={travToDos}
+          renderItem={renderItem}
+          renderHiddenItem={renderHiddenItem}
+          onSwipeValueChange={onSwipeValueChange}
+          rightOpenValue={-Dimensions.get("window").width}
+          useNativeDriver={false}
+        />
+      )}
       {/* <ScrollView>
         {toDos &&
           Object.keys(toDos).map((key) =>
