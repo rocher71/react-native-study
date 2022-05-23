@@ -1,7 +1,11 @@
 import React from "react";
-import { Text } from "react-native";
+import { Text, SafeAreaView } from "react-native";
 
 export default function App() {
-  const textElement = React.createElement(Text, null, "Hello world!");
-  return textElement;
+  const children = [
+    <Text>Hello world!</Text>,
+    <Text>Hello world!</Text>,
+    <Text>Hello world!</Text>,
+  ];
+  return <SafeAreaView>{children}</SafeAreaView>;
 }
